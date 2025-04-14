@@ -44,7 +44,6 @@ class Ponto {
       txtLogin: json['txtLogin'],
     );
   }
-  
 }
 
 class Loja {
@@ -92,7 +91,6 @@ class Loja {
   }
 }
 
-
 class MapaLojasPage extends StatefulWidget {
   @override
   _MapaLojasPageState createState() => _MapaLojasPageState();
@@ -101,6 +99,7 @@ class MapaLojasPage extends StatefulWidget {
 class _MapaLojasPageState extends State<MapaLojasPage> {
   List<Loja> _lojas = [];
   bool _loading = true;
+  String _search = ''; 
 
   @override
   void initState() {
@@ -126,26 +125,6 @@ class _MapaLojasPageState extends State<MapaLojasPage> {
       throw Exception('Erro ao carregar lojas');
     }
   }
-
-  // FALTA IMPLEMENTAR
-  // Future<void> _carregarPonto() async {
-  //   final lojas = await fetchPonto();
-  //   setState(() {
-  //     _lojas = lojas;
-  //     _loading = false;
-  //   });
-  // }
-
-  // Future<List<Loja>> fetchPonto() async {
-  //   final response = await http.get(Uri.parse('http://localhost:5139/api/Bd/dados_BD'));
-
-  //   if (response.statusCode == 200) {
-  //     final List<dynamic> lojasData = json.decode(response.body);
-  //     return lojasData.map((json) => Loja.fromJson(json)).toList();
-  //   } else {
-  //     throw Exception('Erro ao carregar lojas');
-  //   }
-  // }
 
   void _mostrarDetalhes(Loja loja) {
     final devicesDaLoja = _lojas.where((d) => d.siteId == loja.siteId).toList();
@@ -180,8 +159,7 @@ class _MapaLojasPageState extends State<MapaLojasPage> {
               ),
               ...uniqueOnlineDevices.values.map((device) => ListTile(
                     title: Text(device.deviceName),
-                    subtitle:
-                        Text("${device.deviceType} - ${device.deviceArea}"),
+                    subtitle: Text("${device.deviceType} - ${device.deviceArea}"),
                   )),
               SizedBox(height: 16),
               Text(
@@ -190,8 +168,7 @@ class _MapaLojasPageState extends State<MapaLojasPage> {
               ),
               ...uniqueOfflineDevices.values.map((device) => ListTile(
                     title: Text(device.deviceName),
-                    subtitle:
-                        Text("${device.deviceType} - ${device.deviceArea}"),
+                    subtitle: Text("${device.deviceType} - ${device.deviceArea}"),
                   )),
             ],
           ),
@@ -200,13 +177,36 @@ class _MapaLojasPageState extends State<MapaLojasPage> {
     );
   }
 
-
-  @override
   final MapController _mapController = MapController();
 
+  @override
   Widget build(BuildContext context) {
+    final filteredLojas = _lojas.where((loja) => _search.isEmpty || loja.siteId.contains(_search)).toList();
+
     return Scaffold(
-      appBar: AppBar(title: Text("Lojas no Mapa")),
+      appBar: AppBar(
+        title: Text("Lojas no Mapa"),
+        bottom: PreferredSize(
+          preferredSize: Size.fromHeight(60),
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(
+              decoration: InputDecoration(
+                hintText: 'Filtro por Site ID',
+                border: OutlineInputBorder(),
+                filled: true,
+                fillColor: Colors.white,
+                suffixIcon: Icon(Icons.search),
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _search = value;
+                });
+              },
+            ),
+          ),
+        ),
+      ),
       body: Stack(
         children: [
           _loading
@@ -220,22 +220,18 @@ class _MapaLojasPageState extends State<MapaLojasPage> {
                   ),
                   children: [
                     TileLayer(
-                      urlTemplate:
-                          'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
                       subdomains: ['a', 'b', 'c'],
                     ),
                     MarkerLayer(
-                      markers: _lojas.map((loja) {
-                        // Obtém todos os dispositivos da mesma loja.
+                      markers: filteredLojas.map((loja) {
                         final devicesDaLoja =
                             _lojas.where((d) => d.siteId == loja.siteId).toList();
-                        // Verifica se todos estão online.
                         bool allOnline = devicesDaLoja.isNotEmpty &&
                             devicesDaLoja.every((d) => d.down == 0);
-                        // Verifica se todos estão offline.
                         bool allOffline = devicesDaLoja.isNotEmpty &&
                             devicesDaLoja.every((d) => d.down == 1);
-                        // Define a cor do ícone.
+
                         Color iconColor;
                         if (allOnline) {
                           iconColor = Colors.green;
