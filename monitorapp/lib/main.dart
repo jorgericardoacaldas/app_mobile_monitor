@@ -148,24 +148,58 @@ class _MapaLojasPageState extends State<MapaLojasPage> {
   // }
 
   void _mostrarDetalhes(Loja loja) {
+    final devicesDaLoja = _lojas.where((d) => d.siteId == loja.siteId).toList();
+    final onlineDevices = devicesDaLoja.where((d) => d.down == 0).toList();
+    final offlineDevices = devicesDaLoja.where((d) => d.down == 1).toList();
+
+    final uniqueOnlineDevices = <String, Loja>{};
+    for (var device in onlineDevices) {
+      uniqueOnlineDevices[device.deviceName] = device;
+    }
+    final uniqueOfflineDevices = <String, Loja>{};
+    for (var device in offlineDevices) {
+      uniqueOfflineDevices[device.deviceName] = device;
+    }
+
     showModalBottomSheet(
       context: context,
       builder: (_) => Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text("${loja.siteName} (${loja.cityName}/${loja.regionName})", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            SizedBox(height: 8),
-            Text("Dispositivo: ${loja.deviceName}"),
-            Text("Tipo: ${loja.deviceType} - Área: ${loja.deviceArea}"),
-            Text("Status: ${loja.down == 1 ? 'OFFLINE' : 'ONLINE'}"),
-          ],
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "${loja.siteName} (${loja.cityName}/${loja.regionName})",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 16),
+              Text(
+                "Dispositivos Online",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              ...uniqueOnlineDevices.values.map((device) => ListTile(
+                    title: Text(device.deviceName),
+                    subtitle:
+                        Text("${device.deviceType} - ${device.deviceArea}"),
+                  )),
+              SizedBox(height: 16),
+              Text(
+                "Dispositivos Offline",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              ...uniqueOfflineDevices.values.map((device) => ListTile(
+                    title: Text(device.deviceName),
+                    subtitle:
+                        Text("${device.deviceType} - ${device.deviceArea}"),
+                  )),
+            ],
+          ),
         ),
       ),
     );
   }
+
 
   @override
   final MapController _mapController = MapController();
@@ -192,6 +226,24 @@ class _MapaLojasPageState extends State<MapaLojasPage> {
                     ),
                     MarkerLayer(
                       markers: _lojas.map((loja) {
+                        // Obtém todos os dispositivos da mesma loja.
+                        final devicesDaLoja =
+                            _lojas.where((d) => d.siteId == loja.siteId).toList();
+                        // Verifica se todos estão online.
+                        bool allOnline = devicesDaLoja.isNotEmpty &&
+                            devicesDaLoja.every((d) => d.down == 0);
+                        // Verifica se todos estão offline.
+                        bool allOffline = devicesDaLoja.isNotEmpty &&
+                            devicesDaLoja.every((d) => d.down == 1);
+                        // Define a cor do ícone.
+                        Color iconColor;
+                        if (allOnline) {
+                          iconColor = Colors.green;
+                        } else if (allOffline) {
+                          iconColor = Colors.red;
+                        } else {
+                          iconColor = Colors.yellow;
+                        }
                         return Marker(
                           width: 40,
                           height: 40,
@@ -200,7 +252,7 @@ class _MapaLojasPageState extends State<MapaLojasPage> {
                             onTap: () => _mostrarDetalhes(loja),
                             child: Icon(
                               Icons.location_on,
-                              color: loja.down == 1 ? Colors.red : Colors.green,
+                              color: iconColor,
                               size: 36,
                             ),
                           ),
