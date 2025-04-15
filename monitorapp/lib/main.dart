@@ -9,52 +9,11 @@ void main() {
   runApp(MaterialApp(home: MapaLojasPage()));
 }
 
-class Ponto {
-  final DateTime day;
-  final String hr;
-  final String ts;
-  final String codTipoEvento;
-  final String dscEvento;
-  final int codTipoLocal;
-  final int codFilialCc;
-  final String nomWorkstation;
-  final String txtLogin;
-
-  Ponto({
-    required this.day,
-    required this.hr,
-    required this.ts,
-    required this.codTipoEvento,
-    required this.dscEvento,
-    required this.codTipoLocal,
-    required this.codFilialCc, 
-    required this.nomWorkstation,
-    required this.txtLogin,
-  });
-
-  factory Ponto.fromJson(Map<String, dynamic> json) {
-    return Ponto(
-      day: DateTime.parse(json['day']),
-      hr: json['hr'],
-      ts: json['ts'],
-      codTipoEvento: json['codTipoEvento'],
-      dscEvento: json['dscEvento'],
-      codTipoLocal: json['codTipoLocal'],
-      codFilialCc: json['codFilialCc'],
-      nomWorkstation: json['nomWorkstation'],
-      txtLogin: json['txtLogin'],
-    );
-  }
-}
-
 class Loja {
   final String siteId;
+  final List<DeviceGroup> deviceGroups;
+  // Dados da loja para o marcador (usamos os dados do primeiro dispositivo do primeiro grupo)
   final String siteName;
-  final String deviceArea;
-  final String deviceType;
-  final String deviceName;
-  final int down;
-  final DateTime lastSeen; 
   final double lat;
   final double lon;
   final String cityName;
@@ -62,12 +21,8 @@ class Loja {
 
   Loja({
     required this.siteId,
+    required this.deviceGroups,
     required this.siteName,
-    required this.deviceArea,
-    required this.deviceType,
-    required this.deviceName,
-    required this.down,
-    required this.lastSeen, 
     required this.lat,
     required this.lon,
     required this.cityName,
@@ -75,17 +30,82 @@ class Loja {
   });
 
   factory Loja.fromJson(Map<String, dynamic> json) {
-    final geo = json['geo_loc'];
+    List<DeviceGroup> groups = (json['deviceGroups'] as List)
+        .map((g) => DeviceGroup.fromJson(g))
+        .toList();
+
+    // Assume que os dados de localização ficam no primeiro dispositivo do primeiro grupo
+    final firstDevice = groups.first.devices.first;
     return Loja(
+      siteId: json['siteId'].toString(),
+      deviceGroups: groups,
+      siteName: firstDevice.siteName,
+      lat: firstDevice.lat,
+      lon: firstDevice.lon,
+      cityName: firstDevice.cityName,
+      regionName: firstDevice.regionName,
+    );
+  }
+}
+
+class DeviceGroup {
+  final String deviceArea;
+  final List<LojaDevice> devices;
+
+  DeviceGroup({
+    required this.deviceArea,
+    required this.devices,
+  });
+
+  factory DeviceGroup.fromJson(Map<String, dynamic> json) {
+    return DeviceGroup(
+      deviceArea: json['deviceArea'],
+      devices: (json['devices'] as List)
+          .map((d) => LojaDevice.fromJson(d))
+          .toList(),
+    );
+  }
+}
+
+class LojaDevice {
+  final String siteId;
+  final String siteName;
+  final String deviceArea;
+  final String deviceType;
+  final String deviceName;
+  final int down;
+  final DateTime lastSeen;
+  final double lat;
+  final double lon;
+  final String cityName;
+  final String regionName;
+
+  LojaDevice({
+    required this.siteId,
+    required this.siteName,
+    required this.deviceArea,
+    required this.deviceType,
+    required this.deviceName,
+    required this.down,
+    required this.lastSeen,
+    required this.lat,
+    required this.lon,
+    required this.cityName,
+    required this.regionName,
+  });
+
+  factory LojaDevice.fromJson(Map<String, dynamic> json) {
+    final geo = json['geo_loc'];
+    return LojaDevice(
       siteId: json['site_id'].toString(),
       siteName: json['site_name'],
       deviceArea: json['device_area'],
       deviceType: json['device_type'],
       deviceName: json['device_name'],
       down: json['down'],
-      lastSeen: DateTime.parse(json['timestamp']), 
-      lat: geo['lat'].toDouble(),
-      lon: geo['lon'].toDouble(),
+      lastSeen: DateTime.parse(json['timestamp']),
+      lat: (geo['lat'] as num).toDouble(),
+      lon: (geo['lon'] as num).toDouble(),
       cityName: json['city_name'],
       regionName: json['region_name'],
     );
@@ -100,7 +120,7 @@ class MapaLojasPage extends StatefulWidget {
 class _MapaLojasPageState extends State<MapaLojasPage> {
   List<Loja> _lojas = [];
   bool _loading = true;
-  String _search = ''; 
+  String _search = '';
   Timer? _statusTimer;
 
   @override
@@ -119,16 +139,22 @@ class _MapaLojasPageState extends State<MapaLojasPage> {
   }
 
   Future<void> _carregarLojas() async {
-    final lojas = await fetchLojas();
-    setState(() {
-      _lojas = lojas;
-      _loading = false;
-    });
+    try {
+      final lojas = await fetchLojas();
+      setState(() {
+        _lojas = lojas;
+        _loading = false;
+      });
+    } catch (e) {
+      // Trate o erro conforme necessário
+      setState(() {
+        _loading = false;
+      });
+    }
   }
 
   Future<List<Loja>> fetchLojas() async {
     final response = await http.get(Uri.parse('http://localhost:5021/api/Monitoring/all'));
-
     if (response.statusCode == 200) {
       final List<dynamic> lojasData = json.decode(response.body);
       return lojasData.map((json) => Loja.fromJson(json)).toList();
@@ -138,19 +164,6 @@ class _MapaLojasPageState extends State<MapaLojasPage> {
   }
 
   void _mostrarDetalhes(Loja loja) {
-    final devicesDaLoja = _lojas.where((d) => d.siteId == loja.siteId).toList();
-    final onlineDevices = devicesDaLoja.where((d) => d.down == 0).toList();
-    final offlineDevices = devicesDaLoja.where((d) => d.down == 1).toList();
-
-    final uniqueOnlineDevices = <String, Loja>{};
-    for (var device in onlineDevices) {
-      uniqueOnlineDevices[device.deviceName] = device;
-    }
-    final uniqueOfflineDevices = <String, Loja>{};
-    for (var device in offlineDevices) {
-      uniqueOfflineDevices[device.deviceName] = device;
-    }
-
     showModalBottomSheet(
       context: context,
       builder: (_) => Padding(
@@ -164,23 +177,48 @@ class _MapaLojasPageState extends State<MapaLojasPage> {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               SizedBox(height: 16),
-              Text(
-                "Dispositivos Online",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              ...uniqueOnlineDevices.values.map((device) => ListTile(
-                    title: Text(device.deviceName),
-                    subtitle: Text("${device.deviceType} - ${device.deviceArea}"),
-                  )),
-              SizedBox(height: 16),
-              Text(
-                "Dispositivos Offline",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              ...uniqueOfflineDevices.values.map((device) => ListTile(
-                    title: Text(device.deviceName),
-                    subtitle: Text("${device.deviceType} - ${device.deviceArea}"),
-                  )),
+              // Itera nos grupos (deviceArea)
+              ...loja.deviceGroups.map((group) {
+                // Separa dispositivos online e offline do grupo
+                final onlineDevices =
+                    group.devices.where((d) => d.down == 0).toList();
+                final offlineDevices =
+                    group.devices.where((d) => d.down == 1).toList();
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      group.deviceArea,
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    if (onlineDevices.isNotEmpty) ...[
+                      SizedBox(height: 8),
+                      Text(
+                        "Dispositivos Online",
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                      ),
+                      ...onlineDevices.map((device) => ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(device.deviceName),
+                            subtitle: Text("${device.deviceType}"),
+                          )),
+                    ],
+                    if (offlineDevices.isNotEmpty) ...[
+                      SizedBox(height: 8),
+                      Text(
+                        "Dispositivos Offline",
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                      ),
+                      ...offlineDevices.map((device) => ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(device.deviceName),
+                            subtitle: Text("${device.deviceType}"),
+                          )),
+                    ],
+                    SizedBox(height: 16),
+                  ],
+                );
+              }).toList()
             ],
           ),
         ),
@@ -192,7 +230,9 @@ class _MapaLojasPageState extends State<MapaLojasPage> {
 
   @override
   Widget build(BuildContext context) {
-    final filteredLojas = _lojas.where((loja) => _search.isEmpty || loja.siteId.contains(_search)).toList();
+    final filteredLojas = _lojas
+        .where((loja) => _search.isEmpty || loja.siteId.contains(_search))
+        .toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -219,7 +259,7 @@ class _MapaLojasPageState extends State<MapaLojasPage> {
                 filled: true,
                 fillColor: Colors.white,
                 suffixIcon: Icon(Icons.search),
-              ), 
+              ),
               onChanged: (value) {
                 setState(() {
                   _search = value;
@@ -247,13 +287,14 @@ class _MapaLojasPageState extends State<MapaLojasPage> {
                     ),
                     MarkerLayer(
                       markers: filteredLojas.map((loja) {
-                        final devicesDaLoja =
-                            _lojas.where((d) => d.siteId == loja.siteId).toList();
-                        bool allOnline = devicesDaLoja.isNotEmpty &&
-                            devicesDaLoja.every((d) => d.down == 0);
-                        bool allOffline = devicesDaLoja.isNotEmpty &&
-                            devicesDaLoja.every((d) => d.down == 1);
-
+                        // Define a cor do ícone com base nos dispositivos do grupo
+                        List<LojaDevice> allDevices = loja.deviceGroups
+                            .expand((group) => group.devices)
+                            .toList();
+                        bool allOnline = allDevices.isNotEmpty &&
+                            allDevices.every((d) => d.down == 0);
+                        bool allOffline = allDevices.isNotEmpty &&
+                            allDevices.every((d) => d.down == 1);
                         Color iconColor;
                         if (allOnline) {
                           iconColor = Colors.green;
