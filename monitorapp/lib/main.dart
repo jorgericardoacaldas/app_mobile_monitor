@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -100,11 +101,21 @@ class _MapaLojasPageState extends State<MapaLojasPage> {
   List<Loja> _lojas = [];
   bool _loading = true;
   String _search = ''; 
+  Timer? _statusTimer;
 
   @override
   void initState() {
     super.initState();
     _carregarLojas();
+    _statusTimer = Timer.periodic(Duration(seconds: 10), (Timer t) {
+      _carregarLojas();
+    });
+  }
+
+  @override
+  void dispose() {
+    _statusTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _carregarLojas() async {
