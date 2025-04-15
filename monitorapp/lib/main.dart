@@ -185,7 +185,18 @@ class _MapaLojasPageState extends State<MapaLojasPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("Lojas no Mapa"),
+        title: Text("Mapa de Lojas"),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.refresh),
+            onPressed: () {
+              setState(() {
+                _loading = true;
+              });
+              _carregarLojas();
+            },
+          ),
+        ],
         bottom: PreferredSize(
           preferredSize: Size.fromHeight(60),
           child: Padding(
@@ -197,7 +208,7 @@ class _MapaLojasPageState extends State<MapaLojasPage> {
                 filled: true,
                 fillColor: Colors.white,
                 suffixIcon: Icon(Icons.search),
-              ),
+              ), 
               onChanged: (value) {
                 setState(() {
                   _search = value;
