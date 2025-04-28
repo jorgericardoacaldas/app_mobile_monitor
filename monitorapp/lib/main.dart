@@ -12,7 +12,6 @@ void main() {
 class Loja {
   final String siteId;
   final List<DeviceGroup> deviceGroups;
-  // Dados da loja para o marcador (usamos os dados do primeiro dispositivo do primeiro grupo)
   final String siteName;
   final double lat;
   final double lon;
@@ -34,7 +33,6 @@ class Loja {
         .map((g) => DeviceGroup.fromJson(g))
         .toList();
 
-    // Assume que os dados de localização ficam no primeiro dispositivo do primeiro grupo
     final firstDevice = groups.first.devices.first;
     return Loja(
       siteId: json['siteId'].toString(),
@@ -146,7 +144,6 @@ class _MapaLojasPageState extends State<MapaLojasPage> {
         _loading = false;
       });
     } catch (e) {
-      // Trate o erro conforme necessário
       setState(() {
         _loading = false;
       });
