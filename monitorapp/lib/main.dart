@@ -226,10 +226,24 @@ class _MapaLojasPageState extends State<MapaLojasPage> {
   final MapController _mapController = MapController();
 
   @override
-  Widget build(BuildContext context) {
+  @override
+Widget build(BuildContext context) {
     final filteredLojas = _lojas
         .where((loja) => _search.isEmpty || loja.siteId.contains(_search))
         .toList();
+
+    // Filtrar lojas online e offline
+    final onlineLojas = _lojas.where((loja) {
+      return loja.deviceGroups
+          .expand((group) => group.devices)
+          .every((device) => device.down == 0);
+    }).toList();
+
+    final offlineLojas = _lojas.where((loja) {
+      return loja.deviceGroups
+          .expand((group) => group.devices)
+          .every((device) => device.down == 1);
+    }).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -266,6 +280,56 @@ class _MapaLojasPageState extends State<MapaLojasPage> {
           ),
         ),
       ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: Colors.blue,
+              ),
+              child: Text(
+                'Lojas',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                ),
+              ),
+            ),
+            ListTile(
+              title: Text('Lojas Online (${onlineLojas.length})'),
+              onTap: () {
+                Navigator.pop(context); 
+              },
+            ),
+            ...onlineLojas.map((loja) => ListTile(
+                  title: Text(loja.siteName),
+                  subtitle: Text("${loja.cityName}/${loja.regionName}"),
+                  leading: Icon(Icons.check_circle, color: Colors.green),
+                  onTap: () {
+                    Navigator.pop(context); 
+                    _mostrarDetalhes(loja); 
+                  },
+                )),
+            Divider(),
+            ListTile(
+              title: Text('Lojas Offline (${offlineLojas.length})'),
+              onTap: () {
+                Navigator.pop(context); 
+              },
+            ),
+            ...offlineLojas.map((loja) => ListTile(
+                  title: Text(loja.siteName),
+                  subtitle: Text("${loja.cityName}/${loja.regionName}"),
+                  leading: Icon(Icons.error, color: Colors.red),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _mostrarDetalhes(loja);
+                  },
+                )),
+          ],
+        ),
+      ),
       body: Stack(
         children: [
           _loading
@@ -284,7 +348,6 @@ class _MapaLojasPageState extends State<MapaLojasPage> {
                     ),
                     MarkerLayer(
                       markers: filteredLojas.map((loja) {
-                        // Define a cor do ícone com base nos dispositivos do grupo
                         List<LojaDevice> allDevices = loja.deviceGroups
                             .expand((group) => group.devices)
                             .toList();
