@@ -265,93 +265,136 @@ Widget build(BuildContext context) {
             },
           ),
         ],
-        bottom: PreferredSize(
-          preferredSize: Size.fromHeight(60),
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Filtro por Site ID',
-                border: OutlineInputBorder(),
-                filled: true,
-                fillColor: Colors.white,
-                suffixIcon: Icon(Icons.search),
-              ),
-              onChanged: (value) {
-                setState(() {
-                  _search = value;
-                });
-              },
-            ),
-          ),
-        ),
       ),
       drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
-            DrawerHeader(
-              decoration: BoxDecoration(
-                color: Colors.blue,
-              ),
-              child: Text(
-                'Lojas',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                ),
-              ),
+        DrawerHeader(
+          decoration: BoxDecoration(
+            color: Colors.blue,
+          ),
+          child: Text(
+            'Lojas',
+            style: TextStyle(
+          color: Colors.white,
+          fontSize: 24,
             ),
-            ListTile(
-              title: Text('Lojas Online (${onlineLojas.length})'),
-              onTap: () {
-                Navigator.pop(context); 
-              },
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: TextField(
+            decoration: InputDecoration(
+          labelText: 'Filtro por Loja ID',
+          border: OutlineInputBorder(),
+          suffixIcon: Icon(Icons.search),
             ),
-            ...onlineLojas.map((loja) => ListTile(
-                  title: Text(loja.siteName),
-                  subtitle: Text("${loja.cityName}/${loja.regionName}"),
-                  leading: Icon(Icons.check_circle, color: Colors.green),
-                  onTap: () {
-                    Navigator.pop(context); 
-                    _mostrarDetalhes(loja); 
-                  },
-                )),
-            Divider(),
-            ListTile(
-              title: Text('Lojas Parcialmente Online (${partialLojas.length})'),
-              onTap: () {
-                Navigator.pop(context); 
-              },
-            ),
-            ...partialLojas.map((loja) => ListTile(
-                  title: Text(loja.siteName),
-                  subtitle: Text("${loja.cityName}/${loja.regionName}"),
-                  leading: Icon(Icons.error, color: Colors.yellow),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _mostrarDetalhes(loja);
-                  },
-                )),
-            Divider(),
-            ListTile(
-              title: Text('Lojas Offline (${offlineLojas.length})'),
-              onTap: () {
-                Navigator.pop(context); 
-              },
-            ),
-            ...offlineLojas.map((loja) => ListTile(
-                  title: Text(loja.siteName),
-                  subtitle: Text("${loja.cityName}/${loja.regionName}"),
-                  leading: Icon(Icons.error, color: Colors.red),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _mostrarDetalhes(loja);
-                  },
-                )),
+            onChanged: (value) {
+          setState(() {
+            _search = value;
+          });
+            },
+          ),
+        ),
+        // Lojas Online
+        ListTile(
+          title: Text(
+            'Lojas Online (${filteredLojas.where((loja) {
+          final allDevices =
+              loja.deviceGroups.expand((group) => group.devices);
+          return allDevices.isNotEmpty &&
+              allDevices.every((device) => device.down == 0);
+            }).length})',
+          ),
+          onTap: () {
+            Navigator.pop(context);
+          },
+        ),
+        ...filteredLojas.where((loja) {
+          final allDevices =
+          loja.deviceGroups.expand((group) => group.devices);
+          return allDevices.isNotEmpty &&
+          allDevices.every((device) => device.down == 0);
+        }).map((loja) => ListTile(
+          title: Text(loja.siteName),
+          subtitle: Text("${loja.cityName}/${loja.regionName}"),
+          leading: Icon(Icons.check_circle, color: Colors.green),
+          onTap: () {
+            Navigator.pop(context);
+            _mostrarDetalhes(loja);
+          },
+            )),
+        Divider(),
+        // Lojas parcialmente online
+        ListTile(
+          title: Text(
+            'Lojas Parcialmente Online (${filteredLojas.where((loja) {
+          final allDevices =
+              loja.deviceGroups.expand((group) => group.devices).toList();
+          if (allDevices.isEmpty) return false;
+          final hasOnline =
+              allDevices.any((device) => device.down == 0);
+          final hasOffline =
+              allDevices.any((device) => device.down == 1);
+          return hasOnline && hasOffline;
+            }).length})',
+          ),
+          onTap: () {
+            Navigator.pop(context);
+          },
+        ),
+        ...filteredLojas.where((loja) {
+          final allDevices =
+          loja.deviceGroups.expand((group) => group.devices).toList();
+          if (allDevices.isEmpty) return false;
+          final hasOnline =
+          allDevices.any((device) => device.down == 0);
+          final hasOffline =
+          allDevices.any((device) => device.down == 1);
+          return hasOnline && hasOffline;
+        }).map((loja) => ListTile(
+          title: Text(loja.siteName),
+          subtitle: Text("${loja.cityName}/${loja.regionName}"),
+          leading: Icon(Icons.error, color: Colors.yellow),
+          onTap: () {
+            Navigator.pop(context);
+            _mostrarDetalhes(loja);
+          },
+            )),
+        Divider(),
+        // Lojas Offline
+        ListTile(
+          title: Text(
+            'Lojas Offline (${filteredLojas.where((loja) {
+          final allDevices =
+              loja.deviceGroups.expand((group) => group.devices);
+          return allDevices.isNotEmpty &&
+              allDevices.every((device) => device.down == 1);
+            }).length})',
+          ),
+          onTap: () {
+            Navigator.pop(context);
+          },
+        ),
+        ...filteredLojas.where((loja) {
+          final allDevices =
+          loja.deviceGroups.expand((group) => group.devices);
+          return allDevices.isNotEmpty &&
+          allDevices.every((device) => device.down == 1);
+        }).map((loja) => ListTile(
+          title: Text(loja.siteName),
+          subtitle: Text("${loja.cityName}/${loja.regionName}"),
+          leading: Icon(Icons.error, color: Colors.red),
+          onTap: () {
+            Navigator.pop(context);
+            _mostrarDetalhes(loja);
+          },
+            )),
           ],
         ),
       ),
+
       body: Stack(
         children: [
           _loading
