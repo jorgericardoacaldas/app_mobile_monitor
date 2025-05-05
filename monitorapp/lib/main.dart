@@ -232,17 +232,23 @@ Widget build(BuildContext context) {
         .where((loja) => _search.isEmpty || loja.siteId.contains(_search))
         .toList();
 
-    // Filtrar lojas online e offline
+    // Filtrar lojas online, offline e parcialmente online
     final onlineLojas = _lojas.where((loja) {
-      return loja.deviceGroups
-          .expand((group) => group.devices)
-          .every((device) => device.down == 0);
+      final allDevices = loja.deviceGroups.expand((group) => group.devices);
+      return allDevices.isNotEmpty && allDevices.every((device) => device.down == 0);
     }).toList();
 
     final offlineLojas = _lojas.where((loja) {
-      return loja.deviceGroups
-          .expand((group) => group.devices)
-          .every((device) => device.down == 1);
+      final allDevices = loja.deviceGroups.expand((group) => group.devices);
+      return allDevices.isNotEmpty && allDevices.every((device) => device.down == 1);
+    }).toList();
+
+    final partialLojas = _lojas.where((loja) {
+      final allDevices = loja.deviceGroups.expand((group) => group.devices).toList();
+      if (allDevices.isEmpty) return false;
+      final hasOnline = allDevices.any((device) => device.down == 0);
+      final hasOffline = allDevices.any((device) => device.down == 1);
+      return hasOnline && hasOffline;
     }).toList();
 
     return Scaffold(
@@ -309,6 +315,22 @@ Widget build(BuildContext context) {
                   onTap: () {
                     Navigator.pop(context); 
                     _mostrarDetalhes(loja); 
+                  },
+                )),
+            Divider(),
+            ListTile(
+              title: Text('Lojas Parcialmente Online (${partialLojas.length})'),
+              onTap: () {
+                Navigator.pop(context); 
+              },
+            ),
+            ...partialLojas.map((loja) => ListTile(
+                  title: Text(loja.siteName),
+                  subtitle: Text("${loja.cityName}/${loja.regionName}"),
+                  leading: Icon(Icons.error, color: Colors.yellow),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _mostrarDetalhes(loja);
                   },
                 )),
             Divider(),
