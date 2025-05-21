@@ -63,6 +63,7 @@ class DeviceGroup {
 }
 
 class LojaDevice {
+  final int id; 
   final String siteId;
   final String siteName;
   final String deviceArea;
@@ -76,6 +77,7 @@ class LojaDevice {
   final String regionName;
 
   LojaDevice({
+    required this.id,
     required this.siteId,
     required this.siteName,
     required this.deviceArea,
@@ -90,19 +92,19 @@ class LojaDevice {
   });
 
   factory LojaDevice.fromJson(Map<String, dynamic> json) {
-    final geo = json['geo_loc'];
     return LojaDevice(
-      siteId: json['site_id'].toString(),
-      siteName: json['site_name'],
-      deviceArea: json['device_area'],
-      deviceType: json['device_type'],
-      deviceName: json['device_name'],
+      id: json['id'], 
+      siteId: json['siteId'], 
+      siteName: json['siteName'],
+      deviceArea: json['deviceArea'],
+      deviceType: json['deviceType'],
+      deviceName: json['deviceName'],
       down: json['down'],
       lastSeen: DateTime.parse(json['timestamp']),
-      lat: (geo['lat'] as num).toDouble(),
-      lon: (geo['lon'] as num).toDouble(),
-      cityName: json['city_name'],
-      regionName: json['region_name'],
+      lat: (json['lat'] as num).toDouble(),
+      lon: (json['lon'] as num).toDouble(),
+      cityName: json['cityName'],
+      regionName: json['regionName'],
     );
   }
 }
@@ -149,7 +151,7 @@ class _MapaLojasPageState extends State<MapaLojasPage> {
 
   Future<List<Loja>> fetchLojas() async {
     final response = await http.get(
-      Uri.parse('http://localhost:5021/api/Monitoring/all'),
+      Uri.parse('http://localhost:5032/api/MonitorLog/grouped'),
     );
     if (response.statusCode == 200) {
       final List<dynamic> lojasData = json.decode(response.body);
